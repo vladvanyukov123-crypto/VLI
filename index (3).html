@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Калькулятор VLI — висцеральный липидный индекс</title>
+  <style>
+    :root{
+      --bg:#f4f7fb; --card:#ffffff; --text:#162033; --muted:#5c667a;
+      --border:#d9e1ec; --primary:#9a1f2f; --primary-dark:#7c1725;
+      --ok:#176b3a; --ok-bg:#e8f6ee; --risk:#a7351d; --risk-bg:#fff0e8;
+      --warn:#8a6200; --warn-bg:#fff7dd; --shadow:0 18px 45px rgba(22,32,51,.10);
+      --radius:22px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; min-height:100vh; font-family:Inter,Arial,sans-serif; color:var(--text);
+      background:radial-gradient(circle at 8% 0%,rgba(154,31,47,.13),transparent 34%),
+                 radial-gradient(circle at 92% 8%,rgba(31,88,154,.13),transparent 30%), var(--bg);
+    }
+    .page{width:min(1180px,calc(100% - 32px)); margin:0 auto; padding:34px 0 52px}
+    .header{display:grid; grid-template-columns:1fr auto; gap:20px; align-items:end; margin-bottom:22px}
+    .badge{display:inline-flex; width:fit-content; padding:8px 12px; border:1px solid rgba(154,31,47,.24);
+      border-radius:999px; color:var(--primary-dark); background:rgba(255,255,255,.72);
+      font-size:13px; font-weight:800; letter-spacing:.02em; text-transform:uppercase}
+    h1{margin:14px 0 10px; max-width:860px; font-size:clamp(30px,4vw,52px); line-height:1.03; letter-spacing:-.04em}
+    .lead{margin:0; max-width:900px; color:var(--muted); font-size:17px; line-height:1.58}
+    .actions{display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end}
+    button{border:0; border-radius:14px; padding:12px 15px; font:inherit; font-weight:800; cursor:pointer; transition:.18s}
+    .primary{background:var(--primary); color:#fff; box-shadow:0 12px 28px rgba(154,31,47,.25)}
+    .primary:hover{background:var(--primary-dark); transform:translateY(-1px)}
+    .secondary{background:#fff; color:var(--text); border:1px solid var(--border)}
+    .secondary:hover{border-color:#b7c2d2; transform:translateY(-1px)}
+    .grid{display:grid; grid-template-columns:minmax(0,1.1fr) minmax(340px,.9fr); gap:22px; align-items:start}
+    .card{background:rgba(255,255,255,.92); border:1px solid rgba(217,225,236,.9); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden}
+    .card-header{padding:22px 24px 16px; border-bottom:1px solid var(--border)}
+    .card-header h2{margin:0 0 7px; font-size:22px; letter-spacing:-.02em}
+    .card-header p{margin:0; color:var(--muted); line-height:1.5; font-size:14px}
+    .card-body{padding:22px 24px 24px}
+    .form-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px}
+    .field{display:grid; gap:7px}
+    label{font-size:13px; line-height:1.35; color:#2f3a4e; font-weight:800}
+    .unit{font-weight:600; color:var(--muted)}
+    input,select{width:100%; border:1px solid var(--border); border-radius:14px; padding:12px 13px; background:#fff; color:var(--text); font:inherit; outline:none}
+    input:focus,select:focus{border-color:rgba(154,31,47,.62); box-shadow:0 0 0 4px rgba(154,31,47,.10)}
+    .formula-box{margin:20px 0 4px; padding:16px; background:#f7f9fc; border:1px solid var(--border); border-radius:18px; overflow-x:auto}
+    .formula{margin:0; font-family:Georgia,'Times New Roman',serif; font-size:20px; line-height:1.45; white-space:nowrap}
+    .formula small{display:block; margin-top:8px; font-family:Inter,Arial,sans-serif; font-size:13px; color:var(--muted); white-space:normal}
+    .optional{margin-top:20px; padding-top:18px; border-top:1px dashed #c8d2df}
+    .optional-title{margin:0 0 12px; font-size:16px; font-weight:900}
+    .result-panel{position:sticky; top:20px}
+    .vli-value{display:grid; gap:7px; padding:22px; border-radius:22px; background:linear-gradient(135deg,#fff,#f7f9fc); border:1px solid var(--border)}
+    .caption{color:var(--muted); font-size:13px; font-weight:900; text-transform:uppercase; letter-spacing:.04em}
+    .vli-number{font-size:clamp(42px,6vw,70px); line-height:.95; font-weight:900; letter-spacing:-.06em}
+    .threshold{color:var(--muted); font-size:14px; line-height:1.45}
+    .verdict{margin-top:16px; padding:18px; border-radius:20px; border:1px solid transparent}
+    .verdict h3{margin:0 0 8px; font-size:20px; letter-spacing:-.02em}
+    .verdict p{margin:0; line-height:1.55; color:#263247}
+    .verdict.ok{background:var(--ok-bg); border-color:rgba(23,107,58,.22)}
+    .verdict.ok h3{color:var(--ok)}
+    .verdict.risk{background:var(--risk-bg); border-color:rgba(167,53,29,.24)}
+    .verdict.risk h3{color:var(--risk)}
+    .verdict.empty{background:#f7f9fc; border-color:var(--border)}
+    .metric-list{display:grid; gap:10px; margin-top:16px}
+    .metric{display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; padding:12px 14px; background:#fff; border:1px solid var(--border); border-radius:16px; font-size:14px}
+    .metric span:first-child{color:var(--muted)}
+    .progress-wrap{margin-top:16px; padding:14px; border-radius:16px; background:#fff; border:1px solid var(--border)}
+    .progress-top{display:flex; justify-content:space-between; gap:12px; color:var(--muted); font-size:13px; margin-bottom:9px}
+    .bar{height:12px; border-radius:999px; background:linear-gradient(90deg,#cfe9d8 0%,#cfe9d8 49%,#ffd6c7 51%,#ffd6c7 100%); position:relative; overflow:hidden}
+    .marker{position:absolute; top:-4px; width:3px; height:20px; background:#162033; border-radius:99px; left:0%; transform:translateX(-50%)}
+    .threshold-marker{position:absolute; top:0; bottom:0; left:50%; width:2px; background:rgba(154,31,47,.82)}
+    .validation{margin-top:16px; padding:16px; border-radius:18px; background:var(--warn-bg); border:1px solid rgba(138,98,0,.20); color:#4a3b10; line-height:1.5; font-size:14px; display:none}
+    .reference{margin-top:22px; color:var(--muted); font-size:13px; line-height:1.55}
+    .ref-table{width:100%; border-collapse:collapse; margin-top:12px; overflow:hidden; border-radius:16px; font-size:13px}
+    .ref-table th,.ref-table td{border:1px solid var(--border); padding:10px; text-align:left; background:#fff}
+    .ref-table th{background:#f7f9fc; color:#2f3a4e}
+    .footer-note{margin-top:22px; padding:16px 18px; color:var(--muted); background:rgba(255,255,255,.75); border:1px solid var(--border); border-radius:18px; font-size:13px; line-height:1.55}
+    @media(max-width:920px){.header{grid-template-columns:1fr}.actions{justify-content:flex-start}.grid{grid-template-columns:1fr}.result-panel{position:static}}
+    @media(max-width:640px){.form-grid{grid-template-columns:1fr}.page{width:min(100% - 22px,1180px); padding-top:20px}.card-body,.card-header{padding-left:18px; padding-right:18px}}
+    @media print{body{background:#fff}.page{width:100%; padding:0}.actions,.optional,.footer-note{display:none!important}.grid{grid-template-columns:1fr}.card{box-shadow:none; break-inside:avoid}.result-panel{position:static}}
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="header">
+      <div>
+        <div class="badge">VLI · экспериментальная физиология</div>
+        <h1>Калькулятор висцерального липидного индекса у лабораторных крыс</h1>
+        <p class="lead">
+          Инструмент рассчитывает VLI по зоометрическим и биохимическим параметрам и интерпретирует результат по ROC-порогу 0,96: ниже порога — риск висцерального ожирения по индексу не выявлен; от 0,96 и выше — ROC-положительный результат, указывающий на повышенную вероятность висцерального ожирения и метаболического сдвига.
+        </p>
+      </div>
+      <div class="actions">
+        <button class="secondary" type="button" id="loadExample">Заполнить пример</button>
+        <button class="secondary" type="button" id="clearForm">Очистить</button>
+        <button class="primary" type="button" id="printResult">Печать / PDF</button>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <div class="card-header">
+          <h2>Исходные данные</h2>
+          <p>Для расчета VLI обязательны окружность талии, длина тела, триглицериды, общий холестерин, АЛТ и АСТ. Масса тела и масса висцерального жира — необязательные поля для морфометрической верификации.</p>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="field"><label for="animalId">Идентификатор животного</label><input id="animalId" type="text" placeholder="например, УМ1"></div>
+            <div class="field"><label for="sex">Пол</label><select id="sex"><option value="">Не указан</option><option value="male">Самец</option><option value="female">Самка</option></select></div>
+            <div class="field"><label for="waist">Окружность талии <span class="unit">(см)</span></label><input id="waist" type="number" inputmode="decimal" min="1" step="0.1" placeholder="18.5"></div>
+            <div class="field"><label for="length">Длина тела <span class="unit">(см)</span></label><input id="length" type="number" inputmode="decimal" min="1" step="0.1" placeholder="18.0"></div>
+            <div class="field"><label for="tg">Триглицериды, ТГ <span class="unit">(ммоль/л)</span></label><input id="tg" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="2.27"></div>
+            <div class="field"><label for="chol">Общий холестерин, ОХ <span class="unit">(ммоль/л)</span></label><input id="chol" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="1.54"></div>
+            <div class="field"><label for="alt">АЛТ <span class="unit">(Ед/л)</span></label><input id="alt" type="number" inputmode="decimal" min="0.01" step="0.1" placeholder="78.2"></div>
+            <div class="field"><label for="ast">АСТ <span class="unit">(Ед/л)</span></label><input id="ast" type="number" inputmode="decimal" min="0.01" step="0.1" placeholder="28.1"></div>
+          </div>
+
+          <div class="formula-box" aria-label="Формула VLI">
+            <p class="formula">
+              VLI = (ОТ / Длина тела) × (ТГ / ОХ) × (АЛТ / АСТ)
+              <small>Все отношения безразмерные; итоговое значение выводится в условных единицах. Порог ROC-анализа: VLI ≥ 0,96.</small>
+            </p>
+          </div>
+
+          <div class="optional">
+            <p class="optional-title">Дополнительная морфометрическая проверка, если данные доступны</p>
+            <div class="form-grid">
+              <div class="field"><label for="weight">Масса тела <span class="unit">(г)</span></label><input id="weight" type="number" inputmode="decimal" min="1" step="0.1" placeholder="514"></div>
+              <div class="field"><label for="visFat">Масса висцерального жира <span class="unit">(г)</span></label><input id="visFat" type="number" inputmode="decimal" min="0" step="0.01" placeholder="16.89"></div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <aside class="card result-panel">
+        <div class="card-header"><h2>Результат</h2><p>Расчет выполняется автоматически после ввода обязательных параметров.</p></div>
+        <div class="card-body">
+          <div class="vli-value">
+            <span class="caption">VLI, усл. ед.</span>
+            <span class="vli-number" id="vliValue">—</span>
+            <span class="threshold">Диагностический ROC-порог: <strong>0,96</strong></span>
+          </div>
+
+          <div class="verdict empty" id="verdict">
+            <h3>Недостаточно данных</h3>
+            <p>Введите все обязательные показатели для расчета индекса.</p>
+          </div>
+
+          <div class="progress-wrap">
+            <div class="progress-top"><span>0</span><span>Порог 0,96</span><span>≥ 1,92</span></div>
+            <div class="bar" aria-hidden="true"><div class="threshold-marker"></div><div class="marker" id="marker"></div></div>
+          </div>
+
+          <div class="metric-list">
+            <div class="metric"><span>ОТ / длина тела</span><strong id="ratioWaistLength">—</strong></div>
+            <div class="metric"><span>ТГ / ОХ</span><strong id="ratioTgChol">—</strong></div>
+            <div class="metric"><span>АЛТ / АСТ</span><strong id="ratioAltAst">—</strong></div>
+            <div class="metric"><span>Чувствительность / специфичность порога</span><strong>82,6% / 80,0%</strong></div>
+          </div>
+
+          <div class="validation" id="morphValidation"></div>
+
+          <div class="reference">
+            <strong>Референсные морфометрические интервалы по доле висцерального жира:</strong>
+            <table class="ref-table">
+              <thead><tr><th>Пол</th><th>Норма</th><th>Пограничная зона</th><th>Ожирение</th></tr></thead>
+              <tbody>
+                <tr><td>Самцы</td><td>&lt; 1,43%</td><td>1,43–1,50%</td><td>&gt; 1,50%</td></tr>
+                <tr><td>Самки</td><td>&lt; 1,88%</td><td>1,88–2,00%</td><td>&gt; 2,00%</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <div class="footer-note">
+      Область применения: экспериментальные исследования на лабораторных крысах. Калькулятор не предназначен для диагностики ожирения у человека и не заменяет прямую морфометрическую оценку висцеральной жировой ткани при наличии такой возможности.
+    </div>
+  </main>
+
+  <script>
+    const ROC_THRESHOLD = 0.96;
+
+    const fields = {
+      animalId: document.getElementById('animalId'),
+      sex: document.getElementById('sex'),
+      waist: document.getElementById('waist'),
+      length: document.getElementById('length'),
+      tg: document.getElementById('tg'),
+      chol: document.getElementById('chol'),
+      alt: document.getElementById('alt'),
+      ast: document.getElementById('ast'),
+      weight: document.getElementById('weight'),
+      visFat: document.getElementById('visFat')
+    };
+
+    const output = {
+      vliValue: document.getElementById('vliValue'),
+      verdict: document.getElementById('verdict'),
+      marker: document.getElementById('marker'),
+      ratioWaistLength: document.getElementById('ratioWaistLength'),
+      ratioTgChol: document.getElementById('ratioTgChol'),
+      ratioAltAst: document.getElementById('ratioAltAst'),
+      morphValidation: document.getElementById('morphValidation')
+    };
+
+    function toNumber(value) {
+      if (value === null || value === undefined || value === '') return null;
+      const parsed = Number(String(value).replace(',', '.'));
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function fmt(value, digits = 3) {
+      if (!Number.isFinite(value)) return '—';
+      return value.toLocaleString('ru-RU', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+    }
+
+    function mandatoryValues() {
+      return {
+        waist: toNumber(fields.waist.value),
+        length: toNumber(fields.length.value),
+        tg: toNumber(fields.tg.value),
+        chol: toNumber(fields.chol.value),
+        alt: toNumber(fields.alt.value),
+        ast: toNumber(fields.ast.value)
+      };
+    }
+
+    function hasValidMandatory(values) {
+      return Object.values(values).every(value => Number.isFinite(value) && value > 0);
+    }
+
+    function classifyMorphology(sex, percent) {
+      if (!Number.isFinite(percent) || !sex) return null;
+      if (sex === 'male') {
+        if (percent < 1.43) return 'морфометрическая норма для самцов';
+        if (percent <= 1.50) return 'пограничная зона для самцов';
+        return 'морфометрические признаки висцерального ожирения у самцов';
+      }
+      if (sex === 'female') {
+        if (percent < 1.88) return 'морфометрическая норма для самок';
+        if (percent <= 2.00) return 'пограничная зона для самок';
+        return 'морфометрические признаки висцерального ожирения у самок';
+      }
+      return null;
+    }
+
+    function renderMorphology() {
+      const sex = fields.sex.value;
+      const weight = toNumber(fields.weight.value);
+      const visFat = toNumber(fields.visFat.value);
+
+      if (!Number.isFinite(weight) || weight <= 0 || !Number.isFinite(visFat) || visFat < 0) {
+        output.morphValidation.style.display = 'none';
+        output.morphValidation.textContent = '';
+        return;
+      }
+
+      const percent = (visFat / weight) * 100;
+      const classification = classifyMorphology(sex, percent);
+      output.morphValidation.style.display = 'block';
+
+      if (classification) {
+        output.morphValidation.innerHTML = `<strong>Доля висцерального жира:</strong> ${fmt(percent, 2)}%. Интерпретация: ${classification}.`;
+      } else {
+        output.morphValidation.innerHTML = `<strong>Доля висцерального жира:</strong> ${fmt(percent, 2)}%. Для половой интерпретации выберите пол животного.`;
+      }
+    }
+
+    function updateResult() {
+      const values = mandatoryValues();
+
+      if (!hasValidMandatory(values)) {
+        output.vliValue.textContent = '—';
+        output.ratioWaistLength.textContent = '—';
+        output.ratioTgChol.textContent = '—';
+        output.ratioAltAst.textContent = '—';
+        output.marker.style.left = '0%';
+        output.verdict.className = 'verdict empty';
+        output.verdict.innerHTML = '<h3>Недостаточно данных</h3><p>Введите все обязательные показатели для расчета индекса.</p>';
+        renderMorphology();
+        return;
+      }
+
+      const ratioWaistLength = values.waist / values.length;
+      const ratioTgChol = values.tg / values.chol;
+      const ratioAltAst = values.alt / values.ast;
+      const vli = ratioWaistLength * ratioTgChol * ratioAltAst;
+
+      output.vliValue.textContent = fmt(vli, 3);
+      output.ratioWaistLength.textContent = fmt(ratioWaistLength, 3);
+      output.ratioTgChol.textContent = fmt(ratioTgChol, 3);
+      output.ratioAltAst.textContent = fmt(ratioAltAst, 3);
+
+      const markerPercent = Math.max(0, Math.min(100, (vli / (ROC_THRESHOLD * 2)) * 100));
+      output.marker.style.left = `${markerPercent}%`;
+
+      if (vli >= ROC_THRESHOLD) {
+        output.verdict.className = 'verdict risk';
+        output.verdict.innerHTML = `
+          <h3>ROC-положительный результат</h3>
+          <p>VLI ≥ 0,96. По индексу выявлена повышенная вероятность висцерального ожирения и метаболического сдвига у лабораторной крысы. Результат следует интерпретировать как скрининговый риск, а не как абсолютное морфологическое заключение.</p>`;
+      } else {
+        output.verdict.className = 'verdict ok';
+        output.verdict.innerHTML = `
+          <h3>ROC-отрицательный результат</h3>
+          <p>VLI &lt; 0,96. По выбранному ROC-порогу индекс не выявляет признаков повышенного риска висцерального ожирения. При пограничных или клинически противоречивых данных целесообразно повторить измерения и сопоставить результат с морфометрическими показателями.</p>`;
+      }
+
+      renderMorphology();
+    }
+
+    function clearForm() {
+      Object.values(fields).forEach(element => { element.value = ''; });
+      updateResult();
+    }
+
+    function loadExample() {
+      fields.animalId.value = 'УМ1';
+      fields.sex.value = 'male';
+      fields.waist.value = '18.5';
+      fields.length.value = '18';
+      fields.tg.value = '2.27';
+      fields.chol.value = '1.54';
+      fields.alt.value = '78.2';
+      fields.ast.value = '28.1';
+      fields.weight.value = '514';
+      fields.visFat.value = '16.89';
+      updateResult();
+    }
+
+    Object.values(fields).forEach(element => {
+      element.addEventListener('input', updateResult);
+      element.addEventListener('change', updateResult);
+    });
+
+    document.getElementById('loadExample').addEventListener('click', loadExample);
+    document.getElementById('clearForm').addEventListener('click', clearForm);
+    document.getElementById('printResult').addEventListener('click', () => window.print());
+
+    updateResult();
+  </script>
+</body>
+</html>
